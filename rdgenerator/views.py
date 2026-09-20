@@ -220,6 +220,23 @@ def generate_custom_client(params, full_url):
             if '=' in line:
                 k, value = line.split('=', 1)
                 decodedCustom['override-settings'][k.strip()] = value.strip()
+
+    if platform in ('windows', 'windows-x86'):
+        # Vimsa Connect branding and fixed display defaults.  These values
+        # are intentionally applied after the user-provided manual settings
+        # so the generated Windows client always uses the requested branding
+        # and quality level.
+        decodedCustom['disable-account'] = 'Y'
+        decodedCustom['hide-powered-by-me'] = 'Y'
+        decodedCustom['override-settings'].update({
+            'hide-powered-by-me': 'Y',
+            'view-style': 'adaptive',
+            'scroll-style': 'scrollauto',
+            'image-quality': 'best',
+            'codec-preference': 'h265',
+            'enable-hwcodec': 'Y',
+            'enable-abr': 'N',
+        })
     
     decodedCustomJson = json.dumps(decodedCustom)
 

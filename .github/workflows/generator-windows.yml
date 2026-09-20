@@ -251,6 +251,61 @@ jobs:
           sed -i -e 's|&download_url|"${{ env.downloadLink }}"|' ./src/updater.rs
           sed -i -e 's|$downloadUrl/$downloadFile|${{ env.downloadLink }}|' ./flutter/lib/desktop/widgets/update_progress.dart
 
+      - name: Apply Vimsa branding and fixed display defaults
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+
+          PRIVACY_URL = "https://vimsagrup.com.tr/vimsa-connect-gizlilik-beyani.html"
+
+          def update_text(filename, substitutions):
+              path = Path(filename)
+              if not path.exists():
+                  print(f"Skipping missing file: {filename}")
+                  return
+              text = path.read_text(encoding="utf-8")
+              original = text
+              for pattern, replacement in substitutions:
+                  text, matches = re.subn(pattern, replacement, text, count=1)
+                  if matches == 0:
+                      print(f"No match in {filename}: {pattern}")
+              if text != original:
+                  path.write_text(text, encoding="utf-8")
+
+          update_text("Cargo.toml", [
+              (r"(?m)^version\s*=\s*\"[^\"]+\"", 'version = "1.0.0"'),
+          ])
+          update_text("libs/portable/Cargo.toml", [
+              (r"(?m)^version\s*=\s*\"[^\"]+\"", 'version = "1.0.0"'),
+          ])
+          update_text("flutter/pubspec.yaml", [
+              (r"(?m)^version:\s*[^\r\n]+", "version: 1.0.0+1"),
+          ])
+          update_text("src/lang/tr.rs", [
+              (r'\("Slogan_tip",\s*"[^"]*"\)',
+               '("Slogan_tip", "Geliştiren ve Tasarlayan Muhammed Doğrudağ")'),
+              (r'\("powered_by_me",\s*"[^"]*"\)',
+               '("powered_by_me", "")'),
+          ])
+          update_text("flutter/lib/desktop/pages/desktop_setting_page.dart", [
+              (r"'Copyright[^']*\\n\$license'", "'$license'"),
+          ])
+
+          for filename in (
+              "flutter/lib/desktop/pages/desktop_setting_page.dart",
+              "flutter/lib/desktop/pages/install_page.dart",
+              "flutter/lib/mobile/pages/settings_page.dart",
+              "src/ui/index.tis",
+          ):
+              path = Path(filename)
+              if path.exists():
+                  text = path.read_text(encoding="utf-8")
+                  text = text.replace("https://rustdesk.com/privacy.html", PRIVACY_URL)
+                  path.write_text(text, encoding="utf-8")
+
+          print("Vimsa branding, version and privacy URL applied")
+
       - name: set server, serverPort, key, and apiserver
         continue-on-error: true
         shell: bash
