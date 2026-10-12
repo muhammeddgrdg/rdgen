@@ -522,6 +522,7 @@ jobs:
       - name: ui.rs icon
         if: ${{ env.iconlink_url != 'false' }}
         continue-on-error: true
+        timeout-minutes: 3
         shell: bash
         run: |
           cp ./src/ui.rs ./src/ui.rs.bak
