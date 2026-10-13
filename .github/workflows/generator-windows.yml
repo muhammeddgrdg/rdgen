@@ -261,6 +261,11 @@ jobs:
           import re
 
           PRIVACY_URL = "https://vimsagrup.com.tr/vimsa-connect-gizlilik-beyani.html"
+          WEBSITE_URL = "https://vimsagrup.com.tr"
+          PRODUCT_NAME = "Vimsa Connect"
+          PRODUCT_TAGLINE = "Güvenli uzak destek ve bağlantı çözümü"
+          COMPANY_NAME = "Vimsa Grup"
+          DEVELOPER_LINE = "Geliştirme ve Tasarım: Muhammed Doğrudağ"
 
           def update_text(filename, substitutions):
               path = Path(filename)
@@ -279,14 +284,170 @@ jobs:
           # Version is intentionally NOT changed here: Cargo.toml must match
           # Cargo.lock because build.py runs `cargo build --locked`.
           update_text("src/lang/tr.rs", [
-              (r'\("Slogan_tip",\s*"[^"]*"\)',
-               '("Slogan_tip", "Geliştiren ve Tasarlayan Muhammed Doğrudağ")'),
               (r'\("powered_by_me",\s*"[^"]*"\)',
                '("powered_by_me", "")'),
           ])
-          update_text("flutter/lib/desktop/pages/desktop_setting_page.dart", [
-              (r"'Copyright[^']*\\n\$license'", "'$license'"),
-          ])
+
+          # Replace the whole desktop "About" page with the Vimsa layout.
+          ABOUT_PAGE = r"""class _AboutState extends State<_About> {
+            static const _brandColor = Color(0xFF1A3C6E);
+            static const _linkColor = Color(0xFF2E6FD8);
+            static const _websiteUrl = 'WEBSITE_URL';
+            static const _privacyUrl = 'PRIVACY_URL';
+
+            Widget _infoRow(String label, String value) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 3.0),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SizedBox(
+                      width: 130,
+                      child: Text(label, style: const TextStyle(color: Colors.grey)),
+                    ),
+                    Expanded(child: SelectableText(value)),
+                  ],
+                ),
+              );
+            }
+
+            Widget _link(String text, String url) {
+              return InkWell(
+                onTap: () => launchUrlString(url),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4.0),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.open_in_new, size: 16, color: _linkColor),
+                      const SizedBox(width: 6),
+                      Text(text,
+                          style: const TextStyle(
+                              color: _linkColor,
+                              decoration: TextDecoration.underline)),
+                    ],
+                  ),
+                ),
+              );
+            }
+
+            @override
+            Widget build(BuildContext context) {
+              return futureBuilder(future: () async {
+                final version = await bind.mainGetVersion();
+                final buildDate = await bind.mainGetBuildDate();
+                final fingerprint = await bind.mainGetFingerprint();
+                final myId = await bind.mainGetMyId();
+                return {
+                  'version': version,
+                  'buildDate': buildDate,
+                  'fingerprint': fingerprint,
+                  'myId': myId
+                };
+              }(), hasData: (data) {
+                final version = data['version'].toString();
+                final buildDate = data['buildDate'].toString();
+                final fingerprint = data['fingerprint'].toString();
+                final myId = data['myId'].toString();
+                final year = DateTime.now().year;
+                final scrollController = ScrollController();
+                return SingleChildScrollView(
+                  controller: scrollController,
+                  child: _Card(title: translate('About RustDesk'), children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 8.0),
+                        Row(
+                          children: [
+                            Image.asset('assets/icon.png',
+                                width: 48,
+                                height: 48,
+                                errorBuilder: (context, error, stackTrace) =>
+                                    const SizedBox(width: 48, height: 48)),
+                            const SizedBox(width: 12),
+                            const Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('PRODUCT_NAME',
+                                      style: TextStyle(
+                                          fontSize: 20,
+                                          fontWeight: FontWeight.w700)),
+                                  SizedBox(height: 2),
+                                  Text('PRODUCT_TAGLINE',
+                                      style: TextStyle(color: Colors.grey)),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const Divider(height: 24),
+                        _infoRow(translate('Version'), version),
+                        _infoRow(translate('Build Date'), buildDate),
+                        _infoRow(translate('ID'), myId),
+                        if (!isWeb && fingerprint.isNotEmpty)
+                          _infoRow(translate('Fingerprint'), fingerprint),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 16,
+                          children: [
+                            _link(translate('Website'), _websiteUrl),
+                            _link(translate('Privacy Statement'), _privacyUrl),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Container(
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                              color: _brandColor,
+                              borderRadius: BorderRadius.circular(8)),
+                          padding: const EdgeInsets.all(16),
+                          child: SelectionArea(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('© $year COMPANY_NAME. Tüm hakları saklıdır.',
+                                    style: const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w600)),
+                                const SizedBox(height: 6),
+                                const Text('DEVELOPER_LINE',
+                                    style: TextStyle(color: Colors.white)),
+                                const SizedBox(height: 10),
+                                const Text(
+                                    'Açık kaynaklı RustDesk projesi (AGPL-3.0) tabanlıdır.',
+                                    style: TextStyle(
+                                        color: Colors.white70, fontSize: 12)),
+                              ],
+                            ),
+                          ),
+                        ).marginSymmetric(vertical: 4.0),
+                      ],
+                    ).marginOnly(left: _kContentHMargin)
+                  ]),
+                );
+              });
+            }
+          }
+          """
+
+          about = (ABOUT_PAGE
+                   .replace("WEBSITE_URL", WEBSITE_URL)
+                   .replace("PRIVACY_URL", PRIVACY_URL)
+                   .replace("PRODUCT_NAME", PRODUCT_NAME)
+                   .replace("PRODUCT_TAGLINE", PRODUCT_TAGLINE)
+                   .replace("COMPANY_NAME", COMPANY_NAME)
+                   .replace("DEVELOPER_LINE", DEVELOPER_LINE))
+          settings_page = Path("flutter/lib/desktop/pages/desktop_setting_page.dart")
+          text = settings_page.read_text(encoding="utf-8")
+          start = text.find("class _AboutState extends State<_About> {")
+          end = text.find("//#endregion", start)
+          if start == -1 or end == -1:
+              raise SystemExit("About page not found in desktop_setting_page.dart")
+          text = text[:start] + about + "\n" + text[end:]
+          settings_page.write_text(text, encoding="utf-8")
+          print("Vimsa About page applied")
 
           for filename in (
               "flutter/lib/desktop/pages/desktop_setting_page.dart",
