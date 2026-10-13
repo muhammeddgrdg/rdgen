@@ -265,7 +265,6 @@ jobs:
           PRODUCT_NAME = "Vimsa Connect"
           PRODUCT_TAGLINE = "Güvenli uzak destek ve bağlantı çözümü"
           COMPANY_NAME = "Vimsa Grup"
-          DEVELOPER_LINE = "Geliştirme ve Tasarım: Muhammed Doğrudağ"
 
           def update_text(filename, substitutions):
               path = Path(filename)
@@ -283,9 +282,10 @@ jobs:
 
           # Version is intentionally NOT changed here: Cargo.toml must match
           # Cargo.lock because build.py runs `cargo build --locked`.
-          update_text("src/lang/tr.rs", [
-              (r'\("powered_by_me",\s*"[^"]*"\)',
-               '("powered_by_me", "")'),
+
+          # Installer: drop the "Install ... Printer" checkbox (printer stays off).
+          update_text("flutter/lib/desktop/pages/install_page.dart", [
+              (r"\s*Option\(printer, label: 'Install \{\$appName\} Printer'\),", ""),
           ])
 
           # Replace the whole desktop "About" page with the Vimsa layout.
@@ -412,11 +412,8 @@ jobs:
                                         color: Colors.white,
                                         fontWeight: FontWeight.w600)),
                                 const SizedBox(height: 6),
-                                const Text('DEVELOPER_LINE',
-                                    style: TextStyle(color: Colors.white)),
-                                const SizedBox(height: 10),
                                 const Text(
-                                    'Açık kaynaklı RustDesk projesi (AGPL-3.0) tabanlıdır.',
+                                    'Geliştiren: RustDesk - Tasarlayan: Muhammed Doğrudağ',
                                     style: TextStyle(
                                         color: Colors.white70, fontSize: 12)),
                               ],
@@ -438,7 +435,6 @@ jobs:
                    .replace("PRODUCT_NAME", PRODUCT_NAME)
                    .replace("PRODUCT_TAGLINE", PRODUCT_TAGLINE)
                    .replace("COMPANY_NAME", COMPANY_NAME)
-                   .replace("DEVELOPER_LINE", DEVELOPER_LINE))
           settings_page = Path("flutter/lib/desktop/pages/desktop_setting_page.dart")
           text = settings_page.read_text(encoding="utf-8")
           start = text.find("class _AboutState extends State<_About> {")
@@ -872,9 +868,52 @@ jobs:
           Remove-Item ./rustdesk/signed_files.zip
 
       - name: Create custom.txt file
-        shell: bash
+        shell: python
+        env:
+          CUSTOM_B64: ${{ env.custom }}
         run: |
-          echo -n "${{ env.custom }}" | cat > ./rustdesk/custom_.txt
+          import base64, json, os
+
+          raw = os.environ.get("CUSTOM_B64", "").strip()
+          data = json.loads(base64.b64decode(raw)) if raw else {}
+
+          # Vimsa: settings applied to every build, independent of the rdgen form.
+          # Hard settings (only settable at the top level of custom.txt)
+          data["disable-account"] = "Y"
+
+          # Defaults: the form wins if it sets the same key, users can change them
+          defaults = data.setdefault("default-settings", {})
+          for k, v in {
+              "view_style": "adaptive",
+              "scroll_style": "scrollauto",
+              "image_quality": "best",
+              "codec-preference": "auto",
+              "enable-hwcodec": "Y",
+              "enable-abr": "Y",
+              "enable-directx-capture": "Y",
+              "use-texture-render": "Y",
+              "allow-remove-wallpaper": "Y",
+              "enable-tcp-punch": "Y",
+              "enable-udp-punch": "Y",
+              "enable-ipv6-punch": "Y",
+              "i444": "N",
+              "show_quality_monitor": "N",
+              "enable-file-copy-paste": "Y",
+          }.items():
+              defaults.setdefault(k, v)
+
+          # Overrides: always enforced, users cannot change them
+          data.setdefault("override-settings", {}).update({
+              "hide-powered-by-me": "Y",
+              "hide-remote-printer-settings": "Y",
+              "enable-check-update": "N",
+              "allow-auto-update": "N",
+          })
+
+          encoded = base64.b64encode(json.dumps(data).encode("utf-8")).decode("ascii")
+          with open("./rustdesk/custom_.txt", "w", encoding="ascii", newline="") as f:
+              f.write(encoded)
+          print("custom_.txt written with Vimsa settings")
 
       - name: Build self-extracted executable
         shell: bash
