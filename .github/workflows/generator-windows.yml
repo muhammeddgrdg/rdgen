@@ -434,7 +434,7 @@ jobs:
                    .replace("PRIVACY_URL", PRIVACY_URL)
                    .replace("PRODUCT_NAME", PRODUCT_NAME)
                    .replace("PRODUCT_TAGLINE", PRODUCT_TAGLINE)
-                   .replace("COMPANY_NAME", COMPANY_NAME)
+                   .replace("COMPANY_NAME", COMPANY_NAME))
           settings_page = Path("flutter/lib/desktop/pages/desktop_setting_page.dart")
           text = settings_page.read_text(encoding="utf-8")
           start = text.find("class _AboutState extends State<_About> {")
